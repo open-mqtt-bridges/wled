@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.0.1
+
+### Patch Changes
+
+- [#36](https://github.com/open-mqtt-bridges/wled/pull/36) [`c678377`](https://github.com/open-mqtt-bridges/wled/commit/c678377cf267cd10ba0570a8d8357e302d61a852) Thanks [@tobiaswaelde](https://github.com/tobiaswaelde)! - Update compatible runtime dependencies and remediate vulnerable transitive tooling while preserving the existing MQTT and configuration contracts.
+
 ## 4.0.0
 
 ### Major Changes
