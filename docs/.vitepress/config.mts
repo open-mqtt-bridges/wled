@@ -26,7 +26,7 @@ export default defineConfig({
       { text: 'Troubleshooting', link: '/troubleshooting' },
     ],
     editLink: {
-      pattern: 'https://github.com/tobiaswaelde/wled/edit/main/docs/:path',
+      pattern: 'https://github.com/open-mqtt-bridges/wled/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
     socialLinks: [{ icon: 'github', link: 'https://github.com/open-mqtt-bridges/wled' }],
