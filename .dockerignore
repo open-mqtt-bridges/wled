@@ -4,3 +4,8 @@ dist
 coverage
 config/config.yml
 target
+
+# Contributor tooling is not part of the runtime build context.
+.agents
+.specify
+specs
