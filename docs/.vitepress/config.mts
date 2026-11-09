@@ -2,10 +2,10 @@ import { defineConfig } from 'vitepress';
 export default defineConfig({
   title: 'WLED MQTT Bridge',
   description: 'Reliable MQTT integration for WLED controllers.',
-  base: '/wled-mqtt-bridge/',
+  base: '/wled/',
   cleanUrls: true,
   lastUpdated: true,
-  head: [['link', { rel: 'icon', href: '/wled-mqtt-bridge/favicon.svg', type: 'image/svg+xml' }]],
+  head: [['link', { rel: 'icon', href: '/wled/favicon.svg', type: 'image/svg+xml' }]],
   themeConfig: {
     logo: '/logo.svg',
     nav: [
@@ -26,9 +26,9 @@ export default defineConfig({
       { text: 'Troubleshooting', link: '/troubleshooting' },
     ],
     editLink: {
-      pattern: 'https://github.com/tobiaswaelde/wled-mqtt-bridge/edit/main/docs/:path',
+      pattern: 'https://github.com/tobiaswaelde/wled/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
-    socialLinks: [{ icon: 'github', link: 'https://github.com/tobiaswaelde/wled-mqtt-bridge' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/open-mqtt-bridges/wled' }],
   },
 });
