@@ -54,5 +54,14 @@
     "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.72.1"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-mqtt-bridges/wled.git"
+  },
+  "homepage": "https://open-mqtt-bridges.github.io/wled/",
+  "bugs": {
+    "url": "https://github.com/open-mqtt-bridges/wled/issues"
   }
 }
