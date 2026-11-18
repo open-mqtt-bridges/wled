@@ -32,11 +32,26 @@ async function observe(url: string, filter: string) {
   const client = connect(url, { connectTimeout: 5_000, reconnectPeriod: 0 });
   cleanup.push(() => closeClient(client));
   const messages: { payload: string; retained: boolean }[] = [];
-  client.on('message', (_, payload, packet) => messages.push({ payload: payload.toString(), retained: packet.retain }));
+  client.on('message', (received, payload, packet) => {
+    if (received === filter) messages.push({ payload: payload.toString(), retained: packet.retain });
+  });
   await waitFor(`MQTT connection for ${filter}`, () => client.connected);
   const [grant] = await client.subscribeAsync(filter);
   assert.equal(grant.qos, 0);
   return { client, messages };
+}
+
+async function assertNoRetained(url: string, filter: string) {
+  const observer = await observe(url, filter);
+  const barrier = `${topic}/test-barrier`;
+  let echoed = false;
+  observer.client.on('message', (received) => {
+    if (received === barrier) echoed = true;
+  });
+  await observer.client.subscribeAsync(barrier);
+  await observer.client.publishAsync(barrier, 'barrier', { qos: 1 });
+  await waitFor('broker round trip after fresh subscription', () => echoed);
+  assert.deepEqual(observer.messages, [], `Unexpected stored MQTT message on ${filter}`);
 }
 
 async function closeClient(client: MqttClient) {
@@ -179,6 +194,21 @@ async function run() {
     assert.equal(snapshots, 1);
     console.log('Broker restart recovered online availability without reconnecting WLED.');
 
+    const commandTopic = `${topic}/cmd`;
+    const command = '{"on":false}';
+    const commands: string[] = [];
+    originalSocket.on('message', (payload) => commands.push(payload.toString()));
+    const commandObserver = await observe(`mqtt://${endpoint}`, commandTopic);
+    await commandObserver.client.publishAsync(commandTopic, command, { retain: false });
+    await waitFor('command flow and clear', () => commands.length > 0 && commandObserver.messages.length >= 2);
+    assert.deepEqual(commands, ['{"on":false,"v":true}']);
+    assert.deepEqual(commandObserver.messages, [
+      { payload: command, retained: false },
+      { payload: '', retained: false },
+    ]);
+    await assertNoRetained(`mqtt://${endpoint}`, commandTopic);
+    console.log('The command reached WLED once and received a non-retained empty clear.');
+
     const offline = await restartBroker(reconnected.client, async () => {
       deviceOnline = false;
       originalSocket.terminate();
@@ -188,6 +218,19 @@ async function run() {
     assert.deepEqual(offline.messages[0], { payload: 'false', retained: false });
     assert.equal(sockets.length, 1);
     console.log('The first availability after an offline outage was current non-retained false.');
+
+    deviceOnline = true;
+    await waitFor(
+      'live true before killing bridge',
+      () => offline.messages.some(({ payload }) => payload === 'true'),
+      20_000,
+    );
+    bridge.kill('SIGKILL');
+    const [code, signal] = await exited;
+    assert.equal(code, null);
+    assert.equal(signal, 'SIGKILL');
+    await assertNoRetained(`mqtt://${endpoint}`, `${topic}/connected`);
+    console.log('A fresh subscriber received no stored availability after the bridge was killed.');
   } catch (error) {
     console.error(output);
     throw error;

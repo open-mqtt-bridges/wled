@@ -1,6 +1,6 @@
 # Quickstart: Validate Availability Recovery
 
-This guide defines the commands and expected results for the implementation phase. The broker-backed test and `test:availability` script are planned and do not exist yet. Do not run these tests against production devices or brokers.
+This guide describes the automated broker-backed regression. Do not run these tests against production devices or brokers.
 
 ## Prerequisites and commands
 
@@ -16,7 +16,7 @@ pnpm test:availability
 pnpm docs:build
 ```
 
-The separate test command must run in CI after `pnpm build` and fail if its broker cannot start. The planned test starts a version-pinned, disposable Mosquitto container with persistence disabled and an ephemeral loopback port; serves `/json` and `/ws` from a local HTTP/WebSocket fixture; and runs `node dist/index.js` with a temporary `CONFIG_FILE` and synthetic topics. Use separate clean MQTT subscribers and wait for SUBACK. The test owns cleanup: close clients and fixture sockets, terminate the bridge, remove the broker container, and delete temporary config. Do not print local configuration or secrets.
+CI runs `test:availability` after `pnpm build`. The test starts a version-pinned, disposable Mosquitto container with persistence disabled on an OS-selected loopback port held fixed across restarts. It serves `/json` and `/ws` from a local HTTP/WebSocket fixture and runs the built bridge with a temporary `CONFIG_FILE` and synthetic topics. It uses clean MQTT subscribers with SUBACK barriers and cleans up clients, fixture sockets, bridge, broker, and temporary configuration.
 
 ## Expected results
 
