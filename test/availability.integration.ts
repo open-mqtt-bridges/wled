@@ -123,6 +123,27 @@ async function run() {
     assert.equal(sockets.length, 1);
     assert.equal(sockets[0].readyState, WebSocket.OPEN);
     console.log('Early subscriber received live non-retained true on the original WLED socket.');
+
+    const lastValues = new Map<string, boolean>([['stale', false]]);
+    const late = await Promise.all(
+      ['fresh', 'stale'].map(async (name) => ({
+        name,
+        ...(await observe(`mqtt://${endpoint}`, `${topic}/connected`)),
+      })),
+    );
+    await Promise.all(
+      late.map(async ({ name, messages }) => {
+        await waitFor(`late subscriber (${name}) availability`, () => messages.length > 0, 35_000);
+        assert.deepEqual(messages[0], { payload: 'true', retained: false });
+        lastValues.set(name, messages[0].payload === 'true');
+      }),
+    );
+    assert.equal(lastValues.get('fresh'), true);
+    assert.equal(lastValues.get('stale'), true);
+    assert.equal(sockets.length, 1);
+    assert.equal(sockets[0].readyState, WebSocket.OPEN);
+    assert.equal(snapshots, 1);
+    console.log('Late subscribers recovered empty and stale false caches.');
   } catch (error) {
     console.error(output);
     throw error;
