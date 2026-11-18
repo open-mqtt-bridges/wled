@@ -42,8 +42,8 @@ description: "Implementation tasks for WLED availability recovery (#48)"
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T005 Add the crash and command compatibility cases in `test/availability.integration.ts`: observe live `true`, abruptly stop the bridge, then verify no stored `true` is delivered to a fresh subscriber while the broker remains up. While the bridge is running, send one synthetic non-retained command, confirm one device command and a zero-byte MQTT clear, and verify a fresh `/cmd` subscription receives neither as retained. Register listeners before subscribing, use broker round-trip barriers and bounded observations, and add `pnpm test:availability` after build in `.github/workflows/ci.yml` without weakening any existing gate. Run the full command list in [quickstart.md](quickstart.md).
-- [ ] T006 After all feature checks pass, use `pnpm changeset` with `.changeset/config.json` to record one patch changeset for `wled-mqtt-bridge`. Describe the availability recovery and unchanged retention/commands; validate the metadata and commit it separately. Do not version or publish.
+- [X] T005 Add the crash and command compatibility cases in `test/availability.integration.ts`: observe live `true`, abruptly stop the bridge, then verify no stored `true` is delivered to a fresh subscriber while the broker remains up. While the bridge is running, send one synthetic non-retained command, confirm one device command and a zero-byte MQTT clear, and verify a fresh `/cmd` subscription receives neither as retained. Register listeners before subscribing, use broker round-trip barriers and bounded observations, and add `pnpm test:availability` after build in `.github/workflows/ci.yml` without weakening any existing gate. Run the full command list in [quickstart.md](quickstart.md).
+- [X] T006 After all feature checks pass, use `pnpm changeset` with `.changeset/config.json` to record one patch changeset for `wled-mqtt-bridge`. Describe the availability recovery and unchanged retention/commands; validate the metadata and commit it separately. Do not version or publish.
 
 ## Dependencies & Execution Order
 
