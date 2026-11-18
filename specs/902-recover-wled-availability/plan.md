@@ -50,17 +50,17 @@ specs/902-recover-wled-availability/
 src/
 ├── lib/wled/index.ts
 ├── lib/wled/index.spec.ts
-├── lib/wled/availability.integration.ts
 ├── modules/bridge.service.ts         # Existing shared tick; no runtime change expected
 └── modules/mqtt/
     ├── mqtt.service.ts
     └── mqtt.service.spec.ts
 docs/mqtt.md
+test/availability.integration.ts      # Separate process-level regression
 package.json                          # Separate test:availability command
 .github/workflows/ci.yml              # Run broker-backed regression after build
 ```
 
-**Structure Decision**: `Wled` owns the current availability and cadence. `MqttService` owns a connected-only availability publish path. Keep the broker-backed regression alongside the existing WLED tests.
+**Structure Decision**: `Wled` owns the current availability and cadence. `MqttService` owns a connected-only availability publish path. Keep the separate process-level regression under `test/`, outside Jest's `src/` coverage inputs.
 
 ## Design
 
