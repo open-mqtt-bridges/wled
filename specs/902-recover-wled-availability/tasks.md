@@ -12,13 +12,13 @@ description: "Implementation tasks for WLED availability recovery (#48)"
 
 **Purpose**: Verify the actual implementation baseline without modifying the toolchain.
 
-- [ ] T001 Confirm the issue branch was based on current `main`, inspect `package.json`, `pnpm-lock.yaml`, `jest.config.ts`, and `.github/workflows/ci.yml` for the actual pinned versions and gates, and run the frozen install, existing tests, and build in [quickstart.md](quickstart.md). Verify Docker access for the disposable broker; record pre-existing failures separately from feature failures.
+- [X] T001 Confirm the issue branch was based on current `main`, inspect `package.json`, `pnpm-lock.yaml`, `jest.config.ts`, and `.github/workflows/ci.yml` for the actual pinned versions and gates, and run the frozen install, existing tests, and build in [quickstart.md](quickstart.md). Verify Docker access for the disposable broker; record pre-existing failures separately from feature failures.
 
 ## Phase 2: Foundational
 
 **Purpose**: Establish a real MQTT and WLED fixture that passes before the product change.
 
-- [ ] T002 Add the separate `test:availability` script in `package.json` and fixture in `test/availability.integration.ts`: start a version-pinned, disposable Mosquitto container with persistence off and an ephemeral loopback port, serve `/json` and `/ws` locally, and launch the built bridge with a temporary synthetic `CONFIG_FILE`. Use a clean early subscriber with a SUBACK barrier to assert the live `true`, and record socket accepts and `/json` requests. Use bounded waits, fail on missing infrastructure, and clean up all resources in `finally`. Validate the fixture on the unchanged bridge with `pnpm build` and `pnpm test:availability`; keep the default Jest coverage gate unchanged.
+- [X] T002 Add the separate `test:availability` script in `package.json` and fixture in `test/availability.integration.ts`: start a version-pinned, disposable Mosquitto container with persistence off and an ephemeral loopback port, serve `/json` and `/ws` locally, and launch the built bridge with a temporary synthetic `CONFIG_FILE`. Use a clean early subscriber with a SUBACK barrier to assert the live `true`, and record socket accepts and `/json` requests. Use bounded waits, fail on missing infrastructure, and clean up all resources in `finally`. Validate the fixture on the unchanged bridge with `pnpm build` and `pnpm test:availability`; keep the default Jest coverage gate unchanged.
 
 **Checkpoint**: The early-subscriber fixture passes on the baseline without hardware, Redis, or production access.
 
