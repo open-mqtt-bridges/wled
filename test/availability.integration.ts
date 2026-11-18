@@ -4,7 +4,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import type { AddressInfo } from 'node:net';
+import { createServer as createTcpServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -33,7 +33,7 @@ async function observe(url: string, filter: string) {
   cleanup.push(() => closeClient(client));
   const messages: { payload: string; retained: boolean }[] = [];
   client.on('message', (_, payload, packet) => messages.push({ payload: payload.toString(), retained: packet.retain }));
-  await once(client, 'connect', { signal: AbortSignal.timeout(5_000) });
+  await waitFor(`MQTT connection for ${filter}`, () => client.connected);
   const [grant] = await client.subscribeAsync(filter);
   assert.equal(grant.qos, 0);
   return { client, messages };
@@ -47,11 +47,16 @@ async function run() {
   const dir = await mkdtemp(join(tmpdir(), 'wled-availability-'));
   cleanup.push(() => rm(dir, { recursive: true, force: true }));
 
+  const portProbe = createTcpServer().listen(0, host);
+  await once(portProbe, 'listening');
+  const brokerPort = (portProbe.address() as AddressInfo).port;
+  await new Promise<void>((done) => portProbe.close(() => done()));
+  // Docker reassigns a dynamically published port on restart; pin the OS-selected port.
   const broker = docker(
     'run',
     '--detach',
     '--publish',
-    `${host}::1883`,
+    `${host}:${brokerPort}:1883`,
     brokerImage,
     'sh',
     '-c',
@@ -71,12 +76,13 @@ async function run() {
     response.writeHead(200, { 'Content-Type': 'application/json' }).end('{}');
   });
   const wss = new WebSocketServer({ noServer: true });
+  let deviceOnline = true;
   let acceptDevice!: () => void;
   const bridgeReady = new Promise<void>((done) => (acceptDevice = done));
   server.on('upgrade', (request, socket, head) => {
-    if (request.url !== '/ws') return socket.destroy();
+    if (request.url !== '/ws' || !deviceOnline) return socket.destroy();
     void bridgeReady.then(() => {
-      if (!socket.destroyed) wss.handleUpgrade(request, socket, head, (ws) => sockets.push(ws));
+      if (!socket.destroyed && deviceOnline) wss.handleUpgrade(request, socket, head, (ws) => sockets.push(ws));
     });
   });
   server.listen(0, host);
@@ -91,7 +97,7 @@ async function run() {
   await writeFile(
     config,
     JSON.stringify({
-      mqtt: { host, port: Number(new URL(`mqtt://${endpoint}`).port), clientId: bridgeId, reconnectDelayMs: 250 },
+      mqtt: { host, port: brokerPort, clientId: bridgeId, reconnectDelayMs: 1_000 },
       instances: [{ id: 'fixture', topic, host: `${host}:${(server.address() as AddressInfo).port}` }],
     }),
   );
@@ -112,7 +118,9 @@ async function run() {
   });
 
   try {
-    await waitFor('bridge MQTT subscription', () => brokerLogs().includes(`Sending SUBACK to ${bridgeId}`));
+    const bridgeSubscriptions = () => brokerLogs().split(`Sending SUBACK to ${bridgeId}`).length - 1;
+    const brokerStarts = () => brokerLogs().split('mosquitto version 2.0.22 running').length - 1;
+    await waitFor('bridge MQTT subscription', () => bridgeSubscriptions() === 1);
     acceptDevice();
     await waitFor('early subscriber live true', () => early.messages.some(({ payload }) => payload === 'true'));
     assert.deepEqual(
@@ -144,6 +152,42 @@ async function run() {
     assert.equal(sockets[0].readyState, WebSocket.OPEN);
     assert.equal(snapshots, 1);
     console.log('Late subscribers recovered empty and stale false caches.');
+
+    async function restartBroker(watcher: MqttClient, whileDown: () => Promise<void> = async () => undefined) {
+      const subscriptions = bridgeSubscriptions();
+      const starts = brokerStarts();
+      docker('stop', '--time', '1', broker);
+      await waitFor('observer disconnect', () => !watcher.connected);
+      await whileDown();
+      docker('start', broker);
+      await waitFor('broker restart', () => brokerStarts() > starts);
+      assert.equal(docker('port', broker, '1883/tcp'), endpoint);
+      const observer = await observe(`mqtt://${endpoint}`, `${topic}/connected`);
+      await waitFor('bridge MQTT resubscription', () => bridgeSubscriptions() > subscriptions);
+      return observer;
+    }
+
+    let cached = false;
+    const originalSocket = sockets[0];
+    const reconnected = await restartBroker(early.client);
+    await waitFor('online availability after restart', () => reconnected.messages.length > 0, 35_000);
+    assert.deepEqual(reconnected.messages[0], { payload: 'true', retained: false });
+    cached = reconnected.messages[0].payload === 'true';
+    assert.equal(cached, true);
+    assert.deepEqual(sockets, [originalSocket]);
+    assert.equal(originalSocket.readyState, WebSocket.OPEN);
+    assert.equal(snapshots, 1);
+    console.log('Broker restart recovered online availability without reconnecting WLED.');
+
+    const offline = await restartBroker(reconnected.client, async () => {
+      deviceOnline = false;
+      originalSocket.terminate();
+      await waitFor('bridge observing WLED disconnect', () => output.includes('Disconnected.'));
+    });
+    await waitFor('offline availability after restart', () => offline.messages.length > 0, 35_000);
+    assert.deepEqual(offline.messages[0], { payload: 'false', retained: false });
+    assert.equal(sockets.length, 1);
+    console.log('The first availability after an offline outage was current non-retained false.');
   } catch (error) {
     console.error(output);
     throw error;
